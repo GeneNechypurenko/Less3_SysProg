@@ -1,28 +1,49 @@
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Rebar;
+using System;
+using System.Windows.Forms;
 
 namespace SynContext
 {
     public partial class Form1 : Form
     {
         private Bank bank = new Bank();
+        private SynchronizationContext synchronizationContext;
+
         public Form1()
         {
             InitializeComponent();
 
+            synchronizationContext = SynchronizationContext.Current;
+
             bank.BankChanged += Bank_BankChanged;
 
-            //привязка события к обработчику при нажатии на Enter
             moneyTextBox.KeyDown += TextBox_KeyDown;
             nameTextBox.KeyDown += TextBox_KeyDown;
             percentTextBox.KeyDown += TextBox_KeyDown;
         }
-        //добавление потока
+
         private void Bank_BankChanged(object sender, BankChangedEventArgs e)
         {
-            this.BeginInvoke(new Action(() =>
+            synchronizationContext.Send(state =>
             {
-                outputListBox.Items.Add($"{e.PropertyName}: {e.NewValue}");
-            }));
+                int existingIndex = -1;
+                for (int i = 0; i < outputListBox.Items.Count; i++)
+                {
+                    string existingItem = outputListBox.Items[i].ToString();
+                    if (existingItem.StartsWith($"{e.PropertyName}:"))
+                    {
+                        existingIndex = i;
+                        break;
+                    }
+                }
+                if (existingIndex != -1)
+                {
+                    outputListBox.Items[existingIndex] = $"{e.PropertyName}: {e.NewValue}";
+                }
+                else
+                {
+                    outputListBox.Items.Add($"{e.PropertyName}: {e.NewValue}");
+                }
+            }, null);
         }
 
         private void moneyTextBox_TextChanged(object sender, EventArgs e)
